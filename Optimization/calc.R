@@ -53,7 +53,12 @@ ci <- c(0,0,0,0,0,0)
 
 # order of parameters [c,s,c_1_up,c_2_down]
 results <- constrOptim(theta = c(25,25,15,15), f=utility, grad=NULL, ui=ui, ci=ci, control = list(fnscale = -1))
-results
+print(results)
 
-utility(c(25,25,15,15))
-utility(c(48,52,22,-28))
+str(results$par)
+
+
+############################
+
+
+
