@@ -1,4 +1,5 @@
 # to load data source this file. More convenient than to load in each separate file
+setwd(paste0(getwd(),"/data"))
 
 EuroStoxx <- read.dta13("EuroStoxx50.dta")
 # load the latest factor data. status: 30.09.2020
