@@ -1,7 +1,7 @@
 ---
 title: 'Performance Measure: PI'
-author: "Sven Kohler"
-date: "25 3 2021"
+author: "Author: Sven Kohler"
+date: "23.5.2021"
 output: pdf_document
 ---
 
@@ -39,6 +39,7 @@ IDs <- max(c(WikiDaily_selected$wiki_nr)) # defines loop to be executed
 factor_data_name <- "developed" # define the factor data to be used
 verbose <- FALSE
 loop <- FALSE # flag if you want to run the whole code or rely on previous results
+
 ```
 
 ```{r factor data, echo =FALSE}
@@ -49,10 +50,10 @@ factor_data <- get_factor_data(factor_data_name)
 Cross sectional standard deviation of average geometric returns and SDs
 
 $$
-avg\_ret_i = \left[ \prod_{t=1}^{T_i} (1+(return_t-rf_t)) \right] ^ {\frac{1}{|T|}} \\ \\
+avg\_ret_i = \left[ 1+ \left[ \prod_{t=1}^{T_i} (1+(return_t-rf_t)) \right] ^ {\frac{1}{|T|}} \right]^{252}-1 \\ \\
 $$
 $$
-SD\_ret_i = \sqrt{Var(ret_i)} \\ \\
+SD\_ret_i = \sqrt{Var(ret_i)*252} \\ \\
 $$
 $$
 CS\_SD_{ret}=\sqrt{\frac{1}{N}\sum_{i=1}^N(avg\_ret_i-mean\_avg\_ret)^2} \\ \\

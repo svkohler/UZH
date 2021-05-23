@@ -133,7 +133,7 @@ sharpe_ratio <- function(ret,
 PI <- function(prices, rf, lambda, returns=FALSE){
   # annualized metrics
   ann_x_ret <- ann_ret(prices=(prices-rf), returns=returns, days_ret = days_ret)
-  ann_var_port <- var(prices-rf)*sqrt(days_vola)
+  ann_var_port <- var(prices-rf)*days_vola
   # lambda calc
   lambda <- lambda
   # convex combination
