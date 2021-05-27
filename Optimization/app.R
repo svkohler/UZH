@@ -16,6 +16,8 @@ ui <- fluidPage(
       withMathJax(),
       helpText('The expression to be optimzed: $$U(x_0) + \\delta*\\beta[p[U(x_{1(u)})+\\beta(U(x_{2(u)}))]+
            (1-p)[U(x_{1(d)})+\\beta(U(x_{2(d)}))]]$$'),
+      tags$head(tags$style('h5 {color:gray;}')),
+      tags$h5("Remark: The following optimizations are done using the Nelder-Mead Algorithm"),
       # panel where all the external variables are set
       wellPanel(fluidRow(tags$h3("Select external variables below:")),
                 fluidRow(tags$h4("wages")),
@@ -37,8 +39,14 @@ ui <- fluidPage(
       # reactive button
       actionButton(inputId = "optim", label="start optimization"),
       tags$hr(),
+      # title for table
+      textOutput(outputId = "title_table"),
       # output of the optimization result
-      tableOutput(outputId = "optim_results")
+      tableOutput(outputId = "optim_results"),
+      # title for constraints
+      textOutput(outputId = "title_constraints"),
+      # output of the optimization result
+      tableOutput(outputId = "constraints")
     ),
     # second panel for the plots
     tabPanel("Plots", 
@@ -157,9 +165,49 @@ server <- function(input, output){
                                                 "investment period 0", 
                                                 "cash spending period 1 (up)", 
                                                 "cash spending period 1 (down)")
-                           table
-                            }
-                           )
+                           
+                           # build constraints table
+                           constraints_table <- data.frame(matrix(nrow = 1, ncol=5))
+                           colnames(constraints_table) <- c("wages >= 0", 
+                                                            "interest >= 1", 
+                                                            "p*delta <= 1",
+                                                            "0 < beta <= 1",
+                                                            "w_0 >= (c+s)")
+                           # constrain 1
+                           if(input$wage_0 >=0 && input$wage_1_up >=0 && input$wage_1_down >=0 && input$wage_2 >=0){
+                             constraints_table[1,1] <- "ok"
+                           }else{
+                             constraints_table[1,1] <- "violated"
+                           }
+                           # constrain 2
+                           if(input$r >=1){
+                             constraints_table[1,2] <- "ok"
+                           }else{
+                             constraints_table[1,2] <- "violated"
+                           }
+                           # constrain 3
+                           if(input$p * input$delta <=1){
+                             constraints_table[1,3] <- "ok"
+                           }else{
+                             constraints_table[1,3] <- "violated"
+                           }
+                           # constrain 4
+                           if(input$beta >0 && input$beta <=1){
+                             constraints_table[1,4] <- "ok"
+                           }else{
+                             constraints_table[1,4] <- "violated"
+                           }
+                           # constrain 5
+                           if(input$wage_0 >=table[1]+table[2]){
+                             constraints_table[1,5] <- "ok"
+                           }else{
+                             constraints_table[1,5] <- "violated"
+                           }
+                           output <- list(results=table, constraints=constraints_table)
+                           output
+                          }
+                          )
+  
   # code for left plot
   results_plot_left <- eventReactive(input$plot_left, {
     # define range
@@ -428,7 +476,26 @@ server <- function(input, output){
     legend("topleft", col=1:4, cex=0.8, legend = colnames(results_plot_right())[2:5], pch = 1:4 )
   })
   
-  output$optim_results <- renderTable({results_optim()})
+  title_table <- eventReactive(input$optim, {
+    "Optimization results for chosen parameters: "
+  })
+  
+  output$title_table <- renderText({title_table()})
+  output$optim_results <- renderTable({
+    out <- results_optim()
+    t <- out$results
+    t
+    })
+  
+  title_constraints <- eventReactive(input$optim, {
+    "Check constraints for current optimization: "
+  })
+  output$title_constraints <- renderText({title_constraints()})
+  output$constraints <- renderTable({
+    out <- results_optim()
+    t <- out$constraints
+    t
+  })
   
 }
 
