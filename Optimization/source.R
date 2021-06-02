@@ -68,18 +68,18 @@ utility_optim <- function(wage_0,
   )
   ci <- c(0,0,0,0,0,0,-w0)
   
-  # random initialization of starting point for optimization
-  random_init <- runif(1, 0.6, 0.99)
   # initiate loop to counter variance in optim results
   result <- c(0,0,0,0)
   if(with_progress==T){
     withProgress(message = 'Optimization in progress...', style = 'notification', detail = "Starting Optimization", value = 0, {
       for(i in 1:n_optim){
+        # random initialization of starting point for optimization
+        random_init <- runif(1, 0.6, 0.99)
         # call the constrained-optimization function
         opt <- constrOptim(theta = c(random_init*w0/2,random_init*w0/2,random_init*0.9*w0/2,random_init*0.9*w0/2), 
                            f=U, # function to optimize
                            grad=NULL, 
-                           method="SANN",
+                           method="Nelder-Mead",
                            ui=ui, ci=ci, # constraints
                            control = list(fnscale = -1)) # search for a maximum
         result <- result + 1/n_optim*opt$par
@@ -90,10 +90,12 @@ utility_optim <- function(wage_0,
   }else{
     for(i in 1:n_optim){
       # call the constrained-optimization function
+      # random initialization of starting point for optimization
+      random_init <- runif(1, 0.6, 0.99)
       opt <- constrOptim(theta = c(random_init*w0/2,random_init*w0/2,random_init*0.9*w0/2,random_init*0.9*w0/2), 
                          f=U, # function to optimize
                          grad=NULL, 
-                         method="SANN",
+                         method="Nelder-Mead",
                          ui=ui, ci=ci, # constraints
                          control = list(fnscale = -1)) # search for a maximum
       result <- result + 1/n_optim*opt$par
@@ -163,7 +165,8 @@ make_constr_table <- function(res_table,
 
 set_var <- function(curr_var, i){
   if(curr_var == "wage_0"){
-    updateNumericInput(inputId = "wage_0", value=i)
+    print(i)
+    updateSliderInput(inputId = "wage_0", value=i)
   }
   
   if(curr_var == "wage_1_up"){
@@ -212,30 +215,88 @@ p2D <- function(results, endog_var, chosen_vars){
   legend("topleft", col=bucket, cex=0.8, legend = colnames(results())[bucket+1], pch = bucket )
 }
 
-p3D <- function(results, endog_var){
-  idx <- match(endog_var, attributes(results)$z)
-  x <- attributes(results)$x
-  y <- attributes(results)$y
-  M <- mesh(x,y)
-  surf3D(x=M$x, y=M$y, z=results[,,idx])
+utility_optim_loop <- function(selected_vars,
+                               selected_vals,
+                               wage_0, 
+                               wage_1_up, 
+                               wage_1_down,
+                               wage_2, 
+                               delta,
+                               beta,
+                               rate,
+                               prob,
+                               base_func,
+                               alpha,
+                               n_optim=100,
+                               with_progress=FALSE){
+  for(i in 1:length(selected_vars)){
+    if(selected_vars[i] == "wage_0"){
+      wage_0 <- selected_vals[i]
+    }else{
+      wage_0 <- wage_0
+    }
+    
+    if(selected_vars[i] == "wage_1_up"){
+      wage_1_up <- selected_vals[i]
+    }else{
+      wage_1_up <- wage_1_up
+    }
+    
+    if(selected_vars[i] == "wage_1_down"){
+      wage_1_down <- selected_vals[i]
+    }else{
+      wage_1_down <- wage_1_down
+    }
+    
+    if(selected_vars[i] == "wage_2"){
+      wage_2 <- selected_vals[i]
+    }else{
+      wage_2 <- wage_2
+    }
+    
+    if(selected_vars[i] == "beta"){
+      beta <- selected_vals[i]
+    }else{
+      beta <- beta
+    }
+    
+    if(selected_vars[i] == "delta"){
+      delta <- selected_vals[i]
+    }else{
+      delta <- delta
+    }
+    
+    if(selected_vars[i] == "p"){
+      p <- selected_vals[i]
+    }else{
+      p <- prob
+    }
+    
+    if(selected_vars[i] == "r"){
+      r <- selected_vals[i]
+    }else{
+      r <- rate
+    }
+    
+    if(selected_vars[i] == "alpha"){
+      alpha <- selected_vals[i]
+    }else{
+      alpha <- alpha
+    }
+  }
+  
+  opt <- utility_optim(wage_0=wage_0,
+                  wage_1_up=wage_1_up,
+                  wage_1_down=wage_1_down,
+                  wage_2=wage_2,
+                  delta=delta,
+                  beta=beta,
+                  rate=r,
+                  prob=p,
+                  base_func=base_func,
+                  alpha=alpha,
+                  n_optim=n_optim,
+                  with_progress=with_progress)
+  
+  return(opt)
 }
-
-# utility_optim(wage_0=75,
-#               wage_1_up=100, 
-#               wage_1_down=25, 
-#               wage_2=50, 
-#               delta=0.5, 
-#               beta=0.8, 
-#               rate=1.5, 
-#               prob=0.7, 
-#               base_func="log", 
-#               alpha=3)
-
-library(plot3D)
-M <- mesh(seq(0, 6*pi, length.out = 10),seq(pi/3, pi, length.out = 10))
-u <- M$x ; v <- M$y
-x <- v * cos(u)
-y <- v * sin(u)
-z <- 10 * u
-surf3D(x, y, z, colvar = z, colkey = TRUE, 
-       box = TRUE, bty = "b", phi = 30, theta = 120)

@@ -20,8 +20,8 @@ ui <- fluidPage(
       helpText('The expression to be optimzed: $$U(x_0) + \\delta*\\beta[p[U(x_{1(u)})+\\beta(U(x_{2(u)}))]+
            (1-p)[U(x_{1(d)})+\\beta(U(x_{2(d)}))]]$$'),
       tags$head(tags$style('h5 {color:gray;}')),
-      tags$h5("Remark: The following optimizations are done using the Nelder-Mead Algorithm. 
-              The optimization is repeated multiple times with different initilization values."),
+      tags$h5("Remark: The following optimizations are done using the Nelder-Mead Algorithm.
+              The optimization is repeated multiple times with different initilization values and the average is returned."),
       #
       # panel where all the external variables are set
       wellPanel(fluidRow(tags$h3("Select external variables below:")),
@@ -34,11 +34,11 @@ ui <- fluidPage(
                 fluidRow(tags$h4("discount factors, interest, scenario probabilities:")),
                 fluidRow(column(3, sliderInput(inputId = "delta", label = "delta", value=0.8, min=0.5, max=1.1)),
                          column(3, sliderInput(inputId = "beta", label = "beta", value = 0.9, min = 0.5, max=1.1)),
-                         column(3, sliderInput(inputId = "r", label = "interest", value=1.1, min=1, max=3, step=0.1)),
+                         column(3, sliderInput(inputId = "r", label = "interest", value=1.1, min=0.9, max=2, step=0.1)),
                          column(3, sliderInput(inputId = "p", label = "probability scenario up", value = 0.6, min = 0, max=1)),
                 ),
                 fluidRow(tags$h4("select the utility function and alpha-factor:")),
-                fluidRow(column(3, selectInput(inputId = "u", label = "utility function", choices=c("log: a*log(1+x)", "sqrt: (x^a)/a"), selected="log")),
+                  fluidRow(column(3, selectInput(inputId = "u", label = "utility function", choices=c("log: a*log(1+x)", "sqrt: (x^a)/a"), selected="log")),
                          column(3, sliderInput(inputId = "alpha", label = "alpha", value = 0.5, min = 0, max=5, step=0.1)),
                          ),
       ),
@@ -46,7 +46,8 @@ ui <- fluidPage(
       tags$hr(),
       #
       # reactive button
-      actionButton(inputId = "optim", label="start optimization"),
+      fluidRow(column(2, numericInput(inputId = "iter_optim", label="select no. of initializations", value = 100)),
+               column(2, actionButton(inputId = "optim", label="start optimization"))),
       # horizontal line
       tags$hr(),
       #
@@ -86,7 +87,8 @@ ui <- fluidPage(
              ),
              ),
              tags$hr(),
-             actionButton(inputId = "plot_2D", label="plot 2D-Plot"),
+             fluidRow(column(2, numericInput(inputId = "iter_2D", label="select no. of initializations", value = 50)),
+                      column(2, actionButton(inputId = "plot_2D", label="plot 2D-Plot"))),
              plotOutput(outputId = "plot_2D"),
              tags$hr(),
              wellPanel(
@@ -125,7 +127,8 @@ ui <- fluidPage(
                ),
              ),
              tags$hr(),
-             actionButton(inputId = "plot_3D", label="plot 3D-Plot"),
+             fluidRow(column(2, numericInput(inputId = "iter_3D", label="select no. of initializations", value = 25)),
+                      column(2, actionButton(inputId = "plot_3D", label="plot 3D-Plot"))),
              plotlyOutput(outputId = "graph")
     )
   )
@@ -133,6 +136,16 @@ ui <- fluidPage(
 
 # server side of the app. Here: R Code to be performed.
 server <- function(input, output, session){
+  observe({
+    if(input$u=="sqrt: (x^a)/a"){
+      updateSliderInput(inputId = "alpha", value=0.5, min=0, max=1)
+    }
+    if(input$u=="log: a*log(1+x)"){
+      updateSliderInput(inputId = "alpha", value=0.5, min=0, max=5)
+    }
+    
+  })
+  
   # order of parameters [c,s,c_1_up,c_2_down]
   results_optim <- eventReactive(input$optim,
                            {opt <- utility_optim(wage_0=input$wage_0,
@@ -145,7 +158,7 @@ server <- function(input, output, session){
                                                  prob=input$p, 
                                                  base_func=input$u, 
                                                  alpha=input$alpha,
-                                                 n_optim = 5,
+                                                 n_optim = input$iter_optim,
                                                  with_progress=T)
                            res_table <- make_res_table(opt)
                            constr_table <- make_constr_table(res_table,
@@ -178,19 +191,20 @@ server <- function(input, output, session){
     # start loop
     withProgress(message = 'Optimization in progress...', style = 'notification', detail = "Starting Optimization", value = 0, {
       for(l in 1:length(range_2D)){
-        set_var(input$select_plot_2D, l)
-        opt <- utility_optim(wage_0=input$wage_0,
-                             wage_1_up=input$wage_1_up,
-                             wage_1_down=input$wage_1_down,
-                             wage_2=input$wage_2,
-                             delta=input$delta,
-                             beta=input$beta,
-                             rate=input$r,
-                             prob=input$p,
-                             base_func=input$u,
-                             alpha=input$alpha,
-                             n_optim=10,
-                             with_progress=F)
+        opt <- utility_optim_loop(selected_vars=c(input$select_plot_2D),
+                                  selected_vals=c(range_2D[l]),
+                                  wage_0=input$wage_0,
+                                  wage_1_up=input$wage_1_up,
+                                  wage_1_down=input$wage_1_down,
+                                  wage_2=input$wage_2,
+                                  delta=input$delta,
+                                  beta=input$beta,
+                                  rate=input$r,
+                                  prob=input$p,
+                                  base_func=input$u,
+                                  alpha=input$alpha,
+                                  n_optim=input$iter_2D,
+                                  with_progress=F)
         params_2D[l,] <- c(range_2D[l],opt)
         
         incProgress(1/length(range_2D), detail = paste("Optimization for ", input$select_plot_2D, "with value ", range_2D[l]))
@@ -203,8 +217,8 @@ server <- function(input, output, session){
   
   results_plot_3D <- eventReactive(input$plot_3D, {
     # define range
-    range_3D_var1 <- seq(input$from_exog_1_3D, input$to_exog_1_3D, (input$to_exog_1_3D-input$from_exog_1_3D)/20)
-    range_3D_var2 <- seq(input$from_exog_2_3D, input$to_exog_2_3D, (input$to_exog_2_3D-input$from_exog_2_3D)/20)
+    range_3D_var1 <- seq(input$from_exog_1_3D, input$to_exog_1_3D, (input$to_exog_1_3D-input$from_exog_1_3D)/10)
+    range_3D_var2 <- seq(input$from_exog_2_3D, input$to_exog_2_3D, (input$to_exog_2_3D-input$from_exog_2_3D)/10)
     # define matrices where we collect optimized parameters
     params_3D <- array(NA,
                        dim=c(length(range_3D_var1), length(range_3D_var2), 4))
@@ -216,20 +230,20 @@ server <- function(input, output, session){
     withProgress(message = 'Optimization in progress...', style = 'notification', detail = "Starting Optimization", value = 0, {
       for(l in 1:length(range_3D_var1)){
         for(r in 1:length(range_3D_var2)){
-          set_var(input$exog_1_3D, l)
-          set_var(input$exog_2_3D, r)
-          opt <- utility_optim(wage_0=input$wage_0,
-                               wage_1_up=input$wage_1_up,
-                               wage_1_down=input$wage_1_down,
-                               wage_2=input$wage_2,
-                               delta=input$delta,
-                               beta=input$beta,
-                               rate=input$r,
-                               prob=input$p,
-                               base_func=input$u,
-                               alpha=input$alpha,
-                               n_optim=3,
-                               with_progress=F)
+          opt <- utility_optim_loop(selected_vars=c(input$exog_1_3D,input$exog_2_3D),
+                                    selected_vals=c(range_3D_var1[l], range_3D_var2[r]),
+                                    wage_0=input$wage_0,
+                                    wage_1_up=input$wage_1_up,
+                                    wage_1_down=input$wage_1_down,
+                                    wage_2=input$wage_2,
+                                    delta=input$delta,
+                                    beta=input$beta,
+                                    rate=input$r,
+                                    prob=input$p,
+                                    base_func=input$u,
+                                    alpha=input$alpha,
+                                    n_optim=input$iter_3D,
+                                    with_progress=F)
           params_3D[l,r,] <- c(opt)
           incProgress(1/(length(range_3D_var1)*length(range_3D_var2)), 
                       detail = paste("Optimization for ", input$exog_1_3D, "/",input$exog_2_3D, "with values ", range_3D_var1[l],"/", range_3D_var2[r]))
@@ -259,7 +273,8 @@ server <- function(input, output, session){
           xaxis = list(title = input$exog_1_3D),
           yaxis = list(title = input$exog_2_3D),
           zaxis = list(title = input$endo_3D)
-        )
+        ),
+        legend=list(title=list(text=input$endo_3D))
       )
     #plot_ly(z = ~volcano) %>% add_surface() #(x = ~dimnames(results_plot_3D())[1], y = ~dimnames(results_plot_3D())[2], z = ~results_plot_3D()[,,1])
     #plot_3D(results = results_plot_3D, endog_var = input$endo_3D)
