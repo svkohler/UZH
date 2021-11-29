@@ -1,9 +1,9 @@
 
 # set the correct working directory to corresponding files
-setwd("C:/Users/svenk/OneDrive/Desktop/UZH/R project/UZH_Feedbackreport/Dummy_data")
+setwd("/home/svkohler/OneDrive/Desktop/UZH/R project/UZH_Feedbackreport/Dummy_data")
 
 # source the general requirements file directly from different path here (not necessary)
-source("C:/Users/svenk/OneDrive/Desktop/UZH/R project/UZH_Feedbackreport/requirements.R", chdir=TRUE)
+source("/home/svkohler/OneDrive/Desktop/UZH/R project/UZH_Feedbackreport/requirements.R", chdir=TRUE)
 
 # load data matrix (dim: IDs x metrics)
 metrics <- read.csv("data.csv", sep=";")
@@ -58,10 +58,10 @@ for(i in IDs){
     next()
   }
   
-  rmarkdown::render(input = "C:/Users/svenk/OneDrive/Desktop/UZH/R project/UZH_Feedbackreport/Feedbackreport_Alex_v4_loop.Rmd", 
+  rmarkdown::render(input = "/home/svkohler/OneDrive/Desktop/UZH/R project/UZH_Feedbackreport/Feedbackreport_Alex_v4_loop.Rmd", 
                     output_format = "pdf_document",
                     output_file = paste("test_report_", i,"_", Sys.Date(), ".pdf", sep=''),
-                    output_dir = "C:/Users/svenk/OneDrive/Desktop/UZH/LoopReports",
+                    output_dir = "/home/svkohler/OneDrive/Desktop/UZH/LoopReports",
                     params = list(date = paste(as.character(start_date),as.character(end_date), sep="-"), Id = i, currency=as.name(curr)))
 }
 
