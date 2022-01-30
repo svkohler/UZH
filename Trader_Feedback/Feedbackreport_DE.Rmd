@@ -1,0 +1,495 @@
+---
+params:
+  date: ""
+  Id: ""
+  currency: ""
+date: "`r params$date`"
+author: "`r params$Id`"
+currency: "`r params$currency`"
+geometry: left=0.5cm,right=0.5cm,top=0.5cm,bottom=2cm
+header-includes:
+  \usepackage{graphicx}
+  \AtBeginDocument{\let\maketitle\relax}
+  \usepackage{booktabs}
+  \usepackage[singlelinecheck=false]{caption}
+  \usepackage{subcaption}
+  \usepackage{tabularx}
+  \setlength{\tabcolsep}{12pt}
+  \usepackage{float}
+  \usepackage{booktabs}
+  \usepackage{longtable}
+  \usepackage{array}
+  \usepackage{multirow}
+  \usepackage{wrapfig}
+  \usepackage{colortbl}
+  \usepackage{pdflscape}
+  \usepackage{tabu}
+  \usepackage{threeparttable}
+  \usepackage{threeparttablex}
+  \usepackage[normalem]{ulem}
+  \usepackage{makecell}
+  \usepackage{xcolor}
+  \usepackage{pdfpages}
+  \usepackage{lmodern}
+output: pdf_document
+---
+\renewcommand{\familydefault}{\sfdefault}
+\definecolor{econ_blue}{HTML}{3E647D}
+\definecolor{econ_gray}{HTML}{7B92A8}
+\pagenumbering{gobble}
+
+\vspace*{1\baselineskip}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+<!-- correction -->
+\vspace{-1.2cm}
+<!-- box framework -->
+\sffamily\fboxrule.1em\fboxsep1em
+\fcolorbox{econ_blue}{econ_blue}{\color{white}
+\begin{minipage}[t]{0.59\textwidth}
+\vspace{0.0cm}
+\huge{Portfolio Performance Übersicht}
+\vspace{0.0cm}
+\end{minipage}}
+<!-- correction -->
+\hspace{-0.8cm}
+<!-- box framework -->
+\sffamily\fboxrule.1em\fboxsep1em
+\fcolorbox{econ_blue}{econ_blue}{\color{white}
+\begin{minipage}[t]{0.35\textwidth}
+\vspace{-0.07cm}
+%<!-- insert mini table to display individual date and currency -->
+\scalebox{0.7}{
+\Large \begin{tabular}{ l l }
+Zeitraum: & 
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='asis'} 
+cat(as.name(params$date))
+```
+\\
+Währung: & 
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='asis'} 
+cat(as.name(params$currency))
+```
+\end{tabular}
+}
+\vspace{-0.22cm}
+\end{minipage}}
+\newline
+<!-- box framework -->
+\sffamily\fboxrule.1em\fboxsep1em
+\fcolorbox{econ_gray}{econ_gray}{\color{white}
+\begin{minipage}[t]{0.95\textwidth}
+\vspace{-0.2cm}
+\large{Kumulierte Performance}
+\vspace{-0.2cm}
+\end{minipage}}
+```{r, echo=FALSE, fig.height=2.2, fig.width=8, message=FALSE, warning=FALSE}
+
+#################
+### Plot the time series data of the portfolio and the benchmark
+#################
+
+a <- ggplot() + theme_gray() +
+  geom_line(data=data_ID, aes(x=date, y=portfolio, col="#90353B")) +
+  geom_line(data=data_ID, aes(x=date, y=benchmark, col="#1A476F")) +
+  theme(legend.position = "right", legend.title = element_blank(),
+  legend.text = element_text(size = 7), axis.title.x=element_blank(), axis.title.y=element_blank(),
+  plot.subtitle = element_text(size=7, hjust=0, color = "gray16"),
+  plot.title.position = "plot", axis.text.x = element_text(size=7), axis.text.y = element_text(size=7)) +
+  scale_x_date(date_breaks="year",
+               labels = function(x) year(x)) +
+  scale_color_identity(name = "Prices",
+                          breaks = c("#90353B", "#1A476F"),
+                          labels = c("Ihr Portfolio", "Benchmark"),
+                          guide = "legend") +
+  labs(subtitle=paste0("Diese Abbildung zeigt wie sich der Wert einer Anfangsinvestition von 100 ", params$currency," in Ihr Portfolio und in ein Benchmark-Portfolio (berechnet als eine Kombination von Inidizes welche \nIhr Portfolio möglichst genau repliziert) im Laufe der Zeit entwickelt hat. In den Berechnungen sind getätigte Ein- sowie Auszahlungen mit berücksichtigt."))
+
+lay <- rbind(c(1,1))
+grid.arrange(a, layout_matrix = lay)
+
+```
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+#################
+### Plot Risk/Return
+#################
+
+# grid dimensions for colored background
+buffer <- 0.03
+x_min <- min(metrics_ID_table[2,])-buffer
+x_max <- max(metrics_ID_table[2,])+buffer
+y_min <- min(metrics_ID_table[1,])-buffer
+y_max <- max(metrics_ID_table[1,])+buffer
+
+grid <- expand.grid(x=seq(from=x_min, to=x_max, by=0.001),
+                  y=seq(from=y_min, to=y_max, by=0.001))
+
+# take the first two columns
+data <- data.frame(t(metrics_ID_table[1:2,]))
+# rename columns
+colnames(data) <- c("ret", "vola")
+# tranform to factor
+data$names <- rownames(data)
+data$names <- factor(data$names, levels=c("Portfolio", "Benchmark", "SMI", "EuroStoxx", "S&P 500"))
+
+## plot
+plot1 <- ggplot() +      # map fill to the sum of x & y
+  geom_tile(grid, mapping =aes(x, y, fill=y-x), alpha = 0.75) +      # let the grid show through a bit
+  scale_fill_continuous(low='red', high='green', labels = c("besser","schlechter"), breaks=c(y_min-x_min, y_max-x_max),
+                        guide=guide_colorbar(title=NULL, barwidth = 0.5, barheight = 10, label.theme=element_text(size=18)))+
+  geom_point(data=data, aes(vola, ret, label=names, shape=names, col=names), size=8)+
+  geom_text(data=data, mapping = aes(vola, ret, label=names), nudge_y = 0.007, size=7)+
+  scale_y_continuous(labels = percent_format(accuracy = 1), expand = c(0,0)) +
+  scale_x_continuous(labels = percent_format(accuracy = 1), expand = c(0,0)) +
+  xlab("Volatilität Rendite")+
+  ylab("Durchschn. Rendite")+
+  theme(axis.text = element_text(size = 18), axis.title = element_text(size = 20))+
+  guides(color = FALSE, size = FALSE, shape=FALSE)+
+  scale_shape_manual(values=c(15,8,16,17,18))+
+  scale_color_manual(values=c("#90353B", "#1A476F", "#6E8E84", "#008BBC", "#938DD2")) #c("#000066", "#990099", "#009999", "#990000", "#009900")
+
+# save for later inclusion
+ggsave("Images/plot1.png", plot=plot1, width = 10, height=4)
+
+```
+<!-- correction -->
+\vspace{-0.3cm}
+<!-- box framework -->
+\sffamily\fboxrule.1em\fboxsep1em
+\fcolorbox{econ_gray}{econ_gray}{\color{white}
+\begin{minipage}[t]{0.45\textwidth}
+\vspace{-0.2cm}
+\large{Risiko und Rendite (annualisiert)}
+\vspace{-0.4cm}
+\end{minipage}}
+<!-- correction -->
+\hspace{0.15cm}
+<!-- box framework -->
+\sffamily\fboxrule.1em\fboxsep1em
+\fcolorbox{econ_gray}{econ_gray}{\color{white}
+\begin{minipage}[t]{0.45\textwidth}
+\vspace{-0.2cm}
+\large{Risiko-Rendite Profil}
+\vspace{-0.4cm}
+\end{minipage}}
+<!-- correction -->
+\vspace{-0.4cm}
+<!-- settings for caption of table "Annualized Risk Return -->
+\captionsetup{position=top}
+\captionsetup[subfigure]{labelformat=empty}
+\begin{figure}[h]
+%<!-- structure as subfigure to display table and graphic side by side -->
+\begin{subfigure}{0.47\textwidth}
+\caption{\footnotesize Diese Tabelle enthält die Performance Kennzahlen Ihres Portfolios, der dazugehörigen Benchmark, sowie für die Aktienindizes SMI, EuroStoxx 50,
+und S\&P 500. Alle Werte sind annualisiert.}
+%<!-- settings for table row/column separation -->
+\setlength{\tabcolsep}{5pt}
+\setlength\extrarowheight{5pt}
+\footnotesize
+%<!-- start of table -->
+\begin{tabular}{@{}m{8em}|rrrrr|}
+& \multicolumn{1}{c}{Portfolio} &  \multicolumn{1}{c}{Benchmark} & \multicolumn{1}{c}{SMI} & \multicolumn{1}{c}{EuroStoxx} & \multicolumn{1}{c|}{S\&P 500} \\
+\hline
+Durchschn. Rendite & `r noquote(format(round(metrics_ID$mean_raw_ret_port*100,1), nsmall=1))`\% &`r noquote(format(round(metrics_ID$mean_raw_ret_bm*100,1), nsmall=1))`\% &`r noquote(format(round(metrics_ID$mean_raw_ret_smi*100,1), nsmall=1))`\% &`r noquote(format(round(metrics_ID$mean_raw_ret_EuroStoxx*100,1), nsmall=1))`\% &`r noquote(format(round(metrics_ID$mean_raw_ret_SP500*100,1), nsmall=1))`\% \\
+
+Volatilität Rendite & `r noquote(format(round(metrics_ID$ret_vola_port*100,1), nsmall=1))`\% &`r noquote(format(round(metrics_ID$ret_vola_bm*100,1), nsmall=1))`\% &`r noquote(format(round(metrics_ID$ret_vola_smi*100,1), nsmall=1))`\% &`r noquote(format(round(metrics_ID$ret_vola_EuroStoxx*100,1), nsmall=1))`\% &`r noquote(format(round(metrics_ID$ret_vola_SP500*100,1), nsmall=1))`\% \\
+
+Sharpe Ratio &`r noquote(format(round(metrics_ID$SR_port,2), nsmall=2))` &`r noquote(format(round(metrics_ID$SR_bm,2), nsmall=2))` & `r noquote(format(round(metrics_ID$SR_smi,2), nsmall=2))` &`r noquote(format(round(metrics_ID$SR_EuroStoxx,2), nsmall=2))` &`r noquote(format(round(metrics_ID$SR_SP500,2), nsmall=2))` \\
+
+Benchmark-adj. Rendite & `r noquote(format(round(metrics_ID$bm_adj_ret_port,1), nsmall=1))`\%& \cellcolor{gray!25}&\cellcolor{gray!25} & \cellcolor{gray!25}& \cellcolor{gray!25}\\
+
+Restrisiko &`r noquote(format(round(metrics_ID$res_risk_port,1), nsmall=1))`\% &\cellcolor{gray!25} &\cellcolor{gray!25} &\cellcolor{gray!25} &\cellcolor{gray!25} \\
+\hline
+\end{tabular}
+\label{fig:subim1}
+%<!-- end first subfigure -->
+\end{subfigure}
+%<!-- correction -->
+\hspace{0.5cm}
+%<!-- start of second subfigure -->
+\begin{subfigure}{0.47\textwidth}
+\caption{\footnotesize Diese Graphik zeigt die annualisierte Rendite und Volatilität für Ihr Portfolios, der dazugehörigen Benchmark, sowie für die Aktienindizes SMI, EuroStoxx 50, und S\&P 500.}
+%<!-- include plot1 from previous r chunk -->
+\includegraphics[width=10cm, height=3.8cm]{Images/plot1.png}
+\end{subfigure}
+\end{figure}
+<!-- end of figure including the two subfigures -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+#################
+### Plot Investment Style
+#################
+
+# making use of custom stacking function
+data <- stacking(data.frame(inv_style_ID_table))
+# convert to factor
+data$category <- factor(data$category, levels=c("Portfolio", "SMI", "EuroStoxx", "S.P.500"))
+# define buffer for the arrow 
+buffer <- 0.05*(max(inv_style_ID_table)-min(inv_style_ID_table))
+x_min <- min(inv_style_ID_table)-buffer
+x_max <- max(inv_style_ID_table)+buffer
+
+plot2 <- ggplot() + 
+  # initiate necessary arrows
+  geom_segment(aes(x = x_min, y = 1, xend = x_max, yend = 1), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = x_max, y = 1, xend = x_min, yend = 1), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = x_min, y = 2, xend = x_max, yend = 2), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = x_max, y = 2, xend = x_min, yend = 2), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = x_min, y = 3, xend = x_max, yend = 3), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = x_max, y = 3, xend = x_min, yend = 3), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = x_min, y = 4, xend = x_max, yend = 4), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = x_max, y = 4, xend = x_min, yend = 4), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = x_min, y = 5, xend = x_max, yend = 5), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = x_max, y = 5, xend = x_min, yend = 5), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  # place points on arrows
+  geom_point(data=data, mapping=aes(x=value, y =as.numeric(factor(variable, levels=c("Diversification", "Momentum", "Value", "Size","Market"))), shape=category, col=category, size=7), size=7)+
+  scale_y_continuous(breaks = 1:5, labels =c("Unterdiversifiziert", "Vergangene Verlierer", "Wachstumsaktien", "Grosse Unternehmen","Gering"), sec.axis = sec_axis(~. , breaks=1:5, labels=c("Gut diversifiziert", "Vergangene Gewinner", "Value-Aktien", "Kleine Unternehmen","Hoch"))) +
+  guides(size=FALSE)+
+  scale_shape_manual(labels = c("Portfolio", "SMI", "EuroStoxx", "S&P 500"), values=c(15,16,17,18))+
+  scale_color_manual(labels = c("Portfolio", "SMI", "EuroStoxx", "S&P 500"),values=c("#90353B", "#6E8E84", "#008BBC", "#938DD2"))+
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.title = element_blank(),
+        legend.text=element_text(size=12),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_text(size = 16),
+        legend.key.size = unit(1.5, "cm"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank())
+
+# save for later inclusion
+ggsave("Images/plot2.png", width = 11, height=4)
+
+```
+<!-- correction -->
+\vspace{-0.3cm}
+<!-- box framework -->
+\sffamily\fboxrule.1em\fboxsep1em
+\fcolorbox{econ_gray}{econ_gray}{\color{white}
+\begin{minipage}[t]{0.95\textwidth}
+\vspace{-0.2cm}
+\large{Investitionsstil}
+\vspace{-0.4cm}
+\end{minipage}}
+\vspace{-0.15cm} 
+<!-- necessary gap to ensure space between text and box -->
+
+\footnotesize Dieser Abschnitt analysiert erstens die Diversifikation Ihres Portfolio und zweitens wie stark es diversen Faktoren ausgesetzt ist welche sich positiv oder negativ auf die Rendite auswirken können.
+<!-- correction -->
+\vspace{-0.4cm}
+<!-- settings for caption of table "Investment Style -->
+\captionsetup{position=top}
+\captionsetup[subfigure]{labelformat=empty}
+\begin{figure}[h]
+%<!-- structure as subfigure to display table and graphic side by side -->
+\begin{subfigure}[H]{0.45\textwidth}
+%<!-- settings for table row/column separation -->
+\setlength{\tabcolsep}{5pt}
+\setlength\extrarowheight{10pt}
+\footnotesize
+%<!-- start of table -->
+\begin{tabular}{l|wl{3cm}}
+\textbf{Faktor} & \textbf{Was wird gemessen} \\
+Markt & \makecell[l]{Wie sehr sind Sie den Bewegungen des Marktes \\ ausgesetzt} \\
+Grösse & \makecell[l]{Handeln Sie eher Aktien grosser \\ oder kleiner Unternehmen} \\
+Value & \makecell[l]{Kaufen Sie eher Wachstums- \\ oder Value-Aktien} \\
+Momentum & \makecell[l]{Kaufen sie eher vergangene Gewinner \\ oder Verlierer} \\
+Diversifikation & \makecell[l]{Der Anteil der Volatilität Ihres Portfolios \\ welcher von den obigen Faktoren erklärt werden kann} \\
+\end{tabular}
+\end{subfigure}
+%<!-- end first subfigure -->
+%<!-- start second subfigure -->
+\begin{subfigure}[H]{0.45\textwidth}
+\vspace{0.1cm}
+\caption{\footnotesize \textbf{Ihr Portfolio verglichen mit anderen Nutzern}}
+%<!-- include plot1 from previous r chunk -->
+\includegraphics[width=11cm, height=4cm]{Images/plot2.png}
+\end{subfigure}
+\end{figure}
+<!-- end of figure including the two subfigures -->
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+#################
+### Plot Trading Behaviour Analysis
+#################
+
+# making use of custom stacking function
+data <- stacking(data.frame(trad_behav_ID_table))
+
+plot3 <- ggplot() + 
+  # initialize arrows
+  geom_segment(aes(x = -5, y = 1, xend = 105, yend = 1), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = 105, y = 1, xend = -5, yend = 1), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = -5, y = 2, xend = 105, yend = 2), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = 105, y = 2, xend = -5, yend = 2), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = -5, y = 3, xend = 105, yend = 3), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = 105, y = 3, xend = -5, yend = 3), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = -5, y = 4, xend = 105, yend = 4), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = 105, y = 4, xend = -5, yend = 4), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = -5, y = 5, xend = 105, yend = 5), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  geom_segment(aes(x = 105, y = 5, xend = -5, yend = 5), size=2,
+                  arrow = arrow(length = unit(0.5, "cm")))+
+  # place points on arrows
+  geom_point(data=data, mapping=aes(x=value, y =as.numeric(as.factor(variable)), shape=category, color=category), size=7)+
+  scale_y_continuous(breaks = 1:5, labels =rep("Tiefster", 5), sec.axis = sec_axis(~. , breaks=1:5, labels=rep("Höchster", 5))) +
+  xlim(-5, 105)+
+  guides(size=FALSE, shape=FALSE, color=FALSE)+
+  scale_shape_manual(values=c(15))+
+  scale_color_manual(values=c("#90353B"))+
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_text(size = 16),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank())
+  
+# save for later inclusion
+ggsave("Images/plot3.png", width = 10, height=3)
+```
+<!-- correction -->
+\vspace{-0.3cm}
+<!-- box framework -->
+\sffamily\fboxrule.1em\fboxsep1em
+\fcolorbox{econ_gray}{econ_gray}{\color{white}
+\begin{minipage}[t]{0.95\textwidth}
+\vspace{-0.2cm}
+\large{Trading-Verhalten Analyse}
+\vspace{-0.2cm}
+\end{minipage}}
+\vspace{-0.15cm}
+<!-- necessary gap to ensure space between text and box -->
+
+\footnotesize Dieser Abschnitt beschreibt verschiedene Characteriska ihres Trading Verhaltens. Angegeben ist zudem ob das Verhaltensmuster mit einer eher besseren oder
+\newline schlechteren Performance einhergeht und wie sie sich im Vergleich mit anderen Nutzern platzieren.
+<!-- correction -->
+\vspace{-0.2cm}
+<!-- settings for caption of table "Trading Behaviour Analysis -->
+\captionsetup{position=top}
+\captionsetup[subfigure]{labelformat=empty}
+\begin{figure}[h]
+%<!-- structure as subfigure to display table and graphic side by side -->
+\begin{subfigure}[H]{0.45\textwidth}
+%<!-- settings for table row/column separation -->
+\setlength{\tabcolsep}{5pt}
+\setlength\extrarowheight{6pt}
+\footnotesize
+%<!-- start of table -->
+\begin{tabular}{l|wl{5.5cm}|wl{1cm}}
+\textbf{Verhalten} & \textbf{Was wird gemessen} & \textbf{\makecell[l]{Ein grosser \\ Wert ist}}\\
+Turnover & \makecell[l]{Handelsvolumen} & Schlecht \\
+Temperament & \makecell[l]{Handeln in volatilen Märkten} & Schlecht \\
+Aktivität & \makecell[l]{Handeln in steigenden Märkten} & Schlecht \\
+Überzeugung & \makecell[l]{Grösse der Trades} & Schlecht \\
+Dispositions Effekt & \makecell[l]{Werden eher Gewinner statt \\ Verlierer verkauft} & Schlecht \\
+\end{tabular}
+\end{subfigure}
+%<!-- end first subfigure -->
+%<!-- correction -->
+\hspace{1cm}
+%<!-- start second subfigure -->
+\begin{subfigure}[H]{0.45\textwidth}
+\vspace{0.1cm}
+\caption{\footnotesize \textbf{Wie ist Ihr Portfolio positioniert gegenüber anderen Nutzern}}
+\includegraphics[width=10cm, height=3cm]{Images/plot3.png}
+\end{subfigure}
+\end{figure}
+<!-- end of figure including the two subfigures -->
+
+<!-- start a new page for text part -->
+\newpage
+<!-- set margins of the page -->
+\newgeometry{left=2cm,right=2cm,top=2cm,bottom=0cm}
+
+<!-- include header -->
+\vspace*{-1.5cm}\includegraphics[width=17.5cm, height=6cm]{Images/Feedback_Kopfzeile_passgenau.jpg}
+
+\textbf{\large Lesen und Interpretieren der Performance Übersicht}
+
+Dieser Bericht analysiert die Performance Ihres Portfolios und Ihr Investitionsverhalten. Die in diesem Bericht beschriebenen Beziehungen zwischen den verschiedenen Kennzahlen des Investitionsverhalten und der Performance ist diejenige, die im Durchschnitt aller Portfolios beobachtet wurde. Es ist daher wichtig zu bedenken, dass eine Anpassung Ihres Investitionsverhalten keine Garantie für eine Verbesserung der Performance ist.
+
+Nachfolgend finden Sie eine kurze Beschreibung, wie die verschiedenen Abschnitte des Berichts zu lesen sind.
+
+\textbf{Abschnitt: Kumulierte Performance}\newline
+Die Abbildung zeigt, wie sich der Wert einer Anfangsinvestition von 100 
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='asis'} 
+cat(as.name(params$currency))
+``` 
+in Ihr Portfolio und in ein Benchmark-Portfolio im Laufe der Zeit entwickelt hätte. Das Benchmark-Portfolio wird als die Kombination von Indizes berechnet, welche die Renditen Ihres Portfolios am ehesten repliziert. Bei den Berechnungen werden Dividenden, Zinserträge und -aufwendungen, Bewertungsgewinne und -verluste sowie Maklergebühren und Provisionen berücksichtigt. In den Berechnungen sind getätigte Ein- sowie Auszahlungen mit berücksichtigt. Der in der Abbildung dargestellte Wert entspricht demnach dem Betrag, auf den die ursprüngliche Anlage von 100
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='asis'} 
+cat(as.name(params$currency))
+```  
+angewachsen wäre, wenn Sie keine Einzahlungen oder Auszahlungen auf Ihrem Konto vorgenommen hätten.
+
+\textbf{Abschnitt: Risiko und Rendite (annualisiert)}\newline
+Die Tabelle fasst die wichtigsten Performance-Statistiken für Ihr Portfolio, dessen Benchmark und die gängigen Aktienmarktindizes zusammen. Alle Zahlen sind annualisiert und die Renditen sind Gesamtrenditen (d. h. einschließlich Dividenden- und Zinszahlungen und abzüglich Gebühren und Provisionen). Die verschiedenen in der Tabelle angegebenen Werte sind:
+\vspace{-0.4cm}
+\begin{itemize}
+  \setlength\itemsep{0em}
+  \item Durchschn. Rendite: Die durchschnittliche jährliche Rendite des Portfolios .
+  \item Volatilität: Die annualisierte Variabilität der Renditen.
+  \item Sharpe Ratio: Überrendite gegenüber einem risikoarmen Vermögenswerts pro Risikoeinheit.
+  \item Benchmark-adjustierte Rendite: Die Rendite Ihres Portfolios, die über die Kombination von verschiedenen Indizes hinausgeht.
+  \item Restrisiko: Die Volatilität Ihres Portfolios nach Abzug der Auswirkungen der Benchmark.
+\end{itemize}
+
+\textbf{Abschnitt: Risiko-Rendite Profil}\newline
+Die Graphik zeigt die annualisierte Rendite und Volatilität Ihres Portfolios, dessen Benchmark und der gängigen Aktienmarktindizes. Die dargestellten Werte entsprechen der "Durchschn. Rendite" und der "Volatilität", die im Abschnitt "Risiko und Rendite (annualisiert)" aufgeführt sind. Die Hintergrundfarbe des Diagramms hebt hervor, welche Punkte im Diagramm zu bevorzugen sind. Insbesondere sind Punkte, die höher und weiter links liegen besser, da sie eine höhere durchschnittliche Rendite und/oder ein geringeres Risiko aufweisen. Im Gegensatz dazu sind Punkte, die tiefer und weiter rechts liegen schlechter, da sie eine niedrigere durchschnittliche Rendite und/oder ein höheres Risiko aufweisen.
+
+\textbf{Abschnitt Investitionsstil}\newline
+In diesem Abschnitt wird zusammengefasst, wie stark Ihr Portfolio den Faktoren ausgesetzt ist, die die Aktienrenditen insgesamt beeinflussen, und wie gut es diversifiziert ist. Die Risikoexposition Ihres Portfolios wird bewertet, indem berechnet wird, wie empfindlich die Renditen auf Bewegungen der folgenden Faktoren reagieren:
+\vspace{-0.4cm}
+\begin{itemize}
+  \setlength\itemsep{0em}
+  \item Markt: Ein breiter Aktienmarktindex
+  \item Grösse: Ein Portfolio, das Aktien mit einer hohen Marktkapitalisierung hält und Aktien mit einer geringen Marktkapitalisierung verkauft.
+  \item Value: Ein Portfolio, das Aktien kauft, deren Buchwerte pro Aktie im Vergleich zum aktuellen Aktienkurs hoch sind (so genannte "Value-Aktien") und Aktien verkauft, bei denen dieses Verhältnis niedrig ist (so genannte "Growth-Aktien").
+  \item Momentum: Ein Portfolio, das Aktien kauft, die in den vorangegangenen 12 Monaten hohe Renditen erzielten, und Aktien verkauft, die in den vorangegangenen 12 Monaten niedrige Renditen erzielten.
+\end{itemize}
+\vspace{-0.4cm}
+
+Das in der letzten Zeile der Tabelle angegebene Mass für die "Diversifizierung" stellt den Anteil der Variabilität der Renditen Ihres Portfolios dar, der auf die oben genannten vier Renditetreiber zurückzuführen ist. Ein niedriger Wert bedeutet, dass die Renditen Ihres Portfolios grösstenteils durch Einzeltitelwetten bestimmt werden, während ein hoher Wert darauf hinweist, dass die Renditen mehrheitlich durch die vier oben genannten Renditetreiber bestimmt werden kann.
+Die Abbildung auf der rechten Seite zeigt für jede dieser Kennzahlen, wie Ihr Portfolio im Vergleich zu den Portfolios anderer Nutzer in unserem Datensatz und zu gängigen Aktienmarktindizes abschneidet.
+
+
+\textbf{Trading Behaviour Section}\newline
+In diesem Abschnitt des Berichts wird Ihr Handelsverhalten analysiert, es wird beschrieben, ob die einzelnen Verhaltensweisen typischerweise mit einer besseren oder schlechteren Portfolioperformance verbunden sind, und es wird aufgezeigt, wie Ihr Portfolio im Vergleich zu anderen Kunden bei den verschiedenen Messgrößen abschneidet.
+Die folgenden Verhaltensmuster werden analysiert:
+Der Turnover misst, wie viel Sie handeln. Er wird berechnet als Ihr durchschnittliches Handelsvolumen geteilt durch den Wert Ihres Portfolios.
+Das Temperament berücksichtigt, ob Sie dazu neigen, mehr auf volatilen Märkten zu handeln. Er wird berechnet als Korrelation zwischen Ihrem Umsatz und der Volatilität des Aktienmarktes.
+Aktivität misst, ob Sie dazu neigen, eher in steigenden Märkten zu handeln. Er wird berechnet als Korrelation zwischen Ihrem Umsatz und den Renditen eines breiten Aktienmarktindexes.
+Überzeugung misst, ob Sie eher kleine oder grosse Trades tätigen. Er wird berechnet als die durchschnittliche Grösse Ihrer Trades im Verhältnis zum Wert Ihres Portfolios.
+Der Dispositionseffekt gibt an, ob Sie dazu neigen, eher Gewinner als Verlierer zu verkaufen. Er wird berechnet als der Anteil der realisierten Gewinne abzüglich des Anteils der realisierten Verluste.
+
+<!-- include footer -->
+\vspace*{0.3cm}\includegraphics[width=17.5cm, height=6cm]{Images/Feedback_Fusszeile_passgenau.jpg}
+
+
+<!-- ########## -->
+<!-- ## End of file -->
+<!-- ########## -->

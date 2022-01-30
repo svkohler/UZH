@@ -1,12 +1,11 @@
 
 # set the correct working directory to corresponding files
-setwd("/home/svkohler/OneDrive/Desktop/UZH/R project/UZH_Feedbackreport/Dummy_data")
 
 # source the general requirements file directly from different path here (not necessary)
-source("/home/svkohler/OneDrive/Desktop/UZH/R project/UZH_Feedbackreport/requirements.R", chdir=TRUE)
+source("./requirements.R", chdir=TRUE)
 
 # load data matrix (dim: IDs x metrics)
-metrics <- read.csv("data.csv", sep=";")
+metrics <- read.csv("Dummy_data/data.csv", sep=";")
 # extract information about min/max values 
 
 
@@ -49,7 +48,7 @@ for(i in IDs){
   trad_behav_ID_table[4,] <- unlist(metrics_ID[45])
   trad_behav_ID_table[5,] <- unlist(metrics_ID[46])
   # load the data file correspomding to the current ID
-  data_ID <- read.csv(paste0(i, ".csv"), sep=";")
+  data_ID <- read.csv(paste0("./Dummy_data/", i, ".csv"), sep=";")
   data_ID$date <- as.Date(data_ID$date, format="%d.%m.%Y")
   
   # check if not empty
@@ -58,10 +57,10 @@ for(i in IDs){
     next()
   }
   
-  rmarkdown::render(input = "/home/svkohler/OneDrive/Desktop/UZH/R project/UZH_Feedbackreport/Feedbackreport_Alex_v4_loop.Rmd", 
+  rmarkdown::render(input = "./Feedbackreport_DE.Rmd", 
                     output_format = "pdf_document",
                     output_file = paste("test_report_", i,"_", Sys.Date(), ".pdf", sep=''),
-                    output_dir = "/home/svkohler/OneDrive/Desktop/UZH/LoopReports",
+                    output_dir = "./LoopReports",
                     params = list(date = paste(as.character(start_date),as.character(end_date), sep="-"), Id = i, currency=as.name(curr)))
 }
 
