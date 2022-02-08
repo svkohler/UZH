@@ -27,8 +27,6 @@ def get_price(row):
 
     if curr == "CHF":
         return row['closeprice']
-    elif curr in ['IDR', 'NZD', 'LKR', 'ZAR']:
-        return None
     date_ = row['calendarid']
     rates = EX_RAT[['date', curr]]
     spot_rate = rates[rates['date'] == date_][curr]

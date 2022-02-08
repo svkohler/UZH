@@ -10,7 +10,7 @@ prices_update = pd.read_csv('./data/prices_update.csv', chunksize=10000,
 factor_returns = pd.read_csv('./data/factorReturns.csv', chunksize=10000,
                              infer_datetime_format=True, parse_dates=['datenum'])
 
-data = 'prices'
+data = 'factorReturns'
 
 
 def check_dates(start_date, end_date, list_of_dates):
@@ -21,8 +21,8 @@ def check_dates(start_date, end_date, list_of_dates):
 
 
 counter = 0
-for chunk in prices_update:
-    dates = chunk['calendarid']
+for chunk in factor_returns:
+    dates = chunk['datenum']
 
     mask_2015 = check_dates(datetime.datetime(
         2015, 1, 1), datetime.datetime(2015, 12, 31), dates)
@@ -71,9 +71,9 @@ for chunk in prices_update:
 
     if os.path.isfile(f'./data/{data}_2020.csv'):
         chunk[mask_2020].to_csv(
-            f'./data/{data}_2021.csv', mode='a', header=False)
+            f'./data/{data}_2020.csv', mode='a', header=False)
     else:
-        chunk[mask_2020].to_csv(f'./data/{data}_2021.csv')
+        chunk[mask_2020].to_csv(f'./data/{data}_2020.csv')
 
     if os.path.isfile(f'./data/{data}_2021.csv'):
         chunk[mask_2020].to_csv(

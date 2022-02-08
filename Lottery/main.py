@@ -20,12 +20,14 @@ else:
     }
     }
 
+print(isin_lottery['info'])
+
 # go year by year since Lottery characteristic is computed on a yearly basis
 for year in years:
     # if year has already been processed -> skip
     if year < isin_lottery['info']['year']:
+        print(f'year {year} already processed.')
         continue
-    isin_lottery[year] = {}
     # process securities data chunk by chunk
     securities = pd.read_csv('./data/Securities.csv', sep=';', encoding='utf-16',
                              on_bad_lines='skip', low_memory=False, chunksize=100000)
@@ -37,15 +39,24 @@ for year in years:
         f'./data/factorReturns_{year}.csv', infer_datetime_format=True, parse_dates=['datenum'])
     # save the isins in a dictionary for faster look-up time
     prices_isin_dict = {x: x for x in prices['isin'].values}
+    # create a new sub dictionary of not already present
+    if year not in isin_lottery.keys():
+        isin_lottery[year] = {}
+        isin_lottery['info'] = {
+            'year': year,
+            'chunk': 0
+        }
     # initialize counters
-    chunk_counter = 0
+    chunk_counter = isin_lottery['info']['chunk']
     isin_counter = 0
     for i, chunk in enumerate(securities):
         # if chunk has already been processed -> skip
         if i < isin_lottery['info']['chunk']:
+            print(f'chunk {i} already processed.')
             continue
         # isolate ISIN values from securities
         isins = chunk['ISIN'].values
+
         # loop through ISINs and compute return metrics
         for isin in tqdm(isins):
             # check if security ISIN is present in prices data
@@ -53,9 +64,7 @@ for year in years:
                 # start_time = time.time()
                 # get all rows with the matching isin
                 relevant_prices = prices[prices['isin'].values == isin]
-                # if fewer than 25 rows then skip
-                if len(relevant_prices) < 25:
-                    continue
+                # print(time.time()-start_time)
                 # drop duplicates if multiple rows on same date
                 relevant_prices = relevant_prices.drop_duplicates(
                     subset=['calendarid'], keep='first')
@@ -70,22 +79,24 @@ for year in years:
                                          'datenum'], right_on=['calendarid'])
                 # drop NA values
                 reg_data = reg_data.dropna(subset=['returnschf'])
+                # if fewer than 25 rows then skip
+                if len(reg_data) < 25:
+                    continue
                 # perform linear Regression
                 model = LinearRegression()
                 model.fit(
-                    X=reg_data[['mktrf', 'smb', 'hml', 'mom']], y=reg_data['returnschf'])
+                    X=reg_data[['mktrf', 'smb', 'hml', 'mom']], y=reg_data['returnschf']-reg_data['rf'])
                 predictions = model.predict(
                     X=reg_data[['mktrf', 'smb', 'hml', 'mom']])
                 # extract residuals
-                resid = reg_data['returnschf'] - predictions
+                resid = (reg_data['returnschf']-reg_data['rf']) - predictions
                 # calculate statistics
                 std = np.std(resid)
                 skew = scipy.stats.skew(resid)
                 isin_lottery[year][isin] = {'std': std,
                                             'skew': skew,
-                                            'last_price': reg_data['closepricechf'].values[-1]}
+                                            'last_price': (reg_data['calendarid'].values[-1], reg_data['closepricechf'].values[-1])}
                 isin_counter += 1
-                # print(time.time()-start_time)
         chunk_counter += 1
         isin_lottery['info'] = {
             'year': year,

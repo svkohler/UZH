@@ -89,13 +89,23 @@ for curr in tickers:
     print(curr, ' done.')
     print('--------------------')
 
-print(np.array(curr_data).shape)
-
 df = pd.DataFrame(curr_data).transpose()
 df.columns = tickers.keys()
 df['date'] = dates
-print(df)
+df['date'] = pd.to_datetime(
+    df['date'], infer_datetime_format=True)
+df = df.dropna(axis=1)
 
-df.to_csv('./data/exchange_rates.csv')
+wk = pd.read_csv('./data/Wechselkurse.csv')
+wk = wk.iloc[:, [6, 5, 7, 9, 10, 12, 14]]
+wk = wk.drop(axis=0, index=0)
+wk = wk.rename(columns={'Unnamed: 6': 'date'})
+wk['IDR'] = wk['IDR'] / 10000
+wk['date'] = pd.to_datetime(
+    wk['date'], infer_datetime_format=True)
+
+comb = wk.merge(df, how='left', left_on=[
+    'date'], right_on=['date'])
+comb.to_csv('./data/exchange_rates.csv')
 
 print('Successful execution.')
